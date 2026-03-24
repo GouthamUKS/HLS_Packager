@@ -39,13 +39,16 @@ class HLSRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.send_response(200)
         self.end_headers()
 
-    def guess_type(self, path: str) -> Tuple[str, str]:
+    def guess_type(self, path: str) -> Tuple[str, str | None]:
         """Override MIME type guessing for HLS files."""
         for ext, mime_type in self.MIME_TYPES.items():
             if path.endswith(ext):
                 return mime_type, None
 
-        return super().guess_type(path)
+        result = super().guess_type(path)
+        if isinstance(result, tuple):
+            return result
+        return "application/octet-stream", None
 
     def log_message(self, format: str, *args: object) -> None:
         """Log HTTP requests."""
