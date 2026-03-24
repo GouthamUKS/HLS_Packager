@@ -6,3 +6,5 @@ output/
 *.m3u8
 .env
 node_modules/
+*.mp4
+output/
