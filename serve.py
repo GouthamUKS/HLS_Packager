@@ -13,7 +13,6 @@ import socketserver
 import os
 import sys
 from pathlib import Path
-from typing import Tuple
 
 
 class HLSRequestHandler(http.server.SimpleHTTPRequestHandler):
@@ -39,20 +38,29 @@ class HLSRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.send_response(200)
         self.end_headers()
 
-    def guess_type(self, path: str) -> Tuple[str, str | None]:
+    def guess_type(self, path: str) -> str:
         """Override MIME type guessing for HLS files."""
         for ext, mime_type in self.MIME_TYPES.items():
             if path.endswith(ext):
-                return mime_type, None
+                return mime_type
 
-        result = super().guess_type(path)
-        if isinstance(result, tuple):
-            return result
-        return "application/octet-stream", None
+        return super().guess_type(path)
 
     def log_message(self, format: str, *args: object) -> None:
         """Log HTTP requests."""
         print(f"[{self.log_date_time_string()}] {format % args}")
+
+    def do_GET(self) -> None:
+        """Serve player.html at root instead of directory listing."""
+        if self.path in ("/", ""):
+            self.path = "/player.html"
+        super().do_GET()
+
+
+class ReusableTCPServer(socketserver.TCPServer):
+    """TCP server that can re-bind to a recently used port."""
+
+    allow_reuse_address = True
 
 
 def run_server(port: int = 8080) -> None:
@@ -65,7 +73,7 @@ def run_server(port: int = 8080) -> None:
 
     Handler = HLSRequestHandler
 
-    with socketserver.TCPServer(("", port), Handler) as httpd:
+    with ReusableTCPServer(("", port), Handler) as httpd:
         print(f"HLS Server running at http://localhost:{port}")
         print(f"Serving from: {Path.cwd()}")
         print("Press Ctrl+C to stop")

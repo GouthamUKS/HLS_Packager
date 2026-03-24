@@ -206,7 +206,7 @@
                 <input
                     type="text"
                     id="stream-url"
-                    value="master.m3u8"
+                    value="output/master.m3u8"
                     style="
                         width: 100%;
                         padding: 8px 12px;
@@ -282,7 +282,7 @@
         function loadStream() {
             clearError();
 
-            if (!HLS.isSupported()) {
+            if (!Hls.isSupported()) {
                 video.src = document.getElementById('stream-url').value;
                 return;
             }
@@ -291,7 +291,7 @@
                 hls.destroy();
             }
 
-            hls = new HLS({
+            hls = new Hls({
                 debug: false,
                 enableWorker: true,
                 lowLatencyMode: false,
@@ -302,21 +302,21 @@
             hls.loadSource(streamUrl);
             hls.attachMedia(video);
 
-            hls.on(HLS.Events.MANIFEST_PARSED, () => {
+            hls.on(Hls.Events.MANIFEST_PARSED, () => {
                 populateQualityButtons();
             });
 
-            hls.on(HLS.Events.LEVEL_SWITCHED, (event, data) => {
+            hls.on(Hls.Events.LEVEL_SWITCHED, (event, data) => {
                 updateQualityButtons(data.level);
             });
 
-            hls.on(HLS.Events.ERROR, (event, data) => {
+            hls.on(Hls.Events.ERROR, (event, data) => {
                 if (data.fatal) {
                     switch (data.type) {
-                        case HLS.ErrorTypes.NETWORK_ERROR:
+                        case Hls.ErrorTypes.NETWORK_ERROR:
                             showError(`Network error: ${data.response?.status || 'Unknown'}`);
                             break;
-                        case HLS.ErrorTypes.MEDIA_ERROR:
+                        case Hls.ErrorTypes.MEDIA_ERROR:
                             showError('Media error: Invalid video format or stream');
                             break;
                         default:
