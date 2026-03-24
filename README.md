@@ -115,7 +115,14 @@ Start the HTTP server:
 python3 serve.py
 ```
 
-Open browser: http://localhost:8080/player.html
+Open browser: http://localhost:8080
+
+## Latest Verification
+
+- Root URL now serves the player page directly (no directory listing)
+- Default stream loads from `output/master.m3u8`
+- Adaptive quality buttons (Auto, 360p, 480p, 720p) verified during playback
+- HLS manifest served with `application/vnd.apple.mpegurl` MIME type
 
 ## Output Structure
 
