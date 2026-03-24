@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HLS Adaptive Bitrate Player</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #0a0a0a;
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .subtitle {
+            color: #777;
+            font-size: 14px;
+        }
+
+        .player-wrapper {
+            background: #1a1a1a;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            margin-bottom: 30px;
+        }
+
+        video {
+            width: 100%;
+            height: auto;
+            display: block;
+            background: #000;
+        }
+
+        .controls {
+            background: #1a1a1a;
+            padding: 20px;
+            border-top: 1px solid #2a2a2a;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .control-label {
+            display: block;
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .quality-selector {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: #222;
+            color: #fff;
+            border: 1px solid #444;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s ease;
+        }
+
+        button:hover {
+            background: #333;
+            border-color: #666;
+        }
+
+        button.active {
+            background: #ff6b35;
+            border-color: #ff6b35;
+        }
+
+        .stats {
+            background: #1a1a1a;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            border: 1px solid #2a2a2a;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .stat-item {
+            border-left: 3px solid #ff6b35;
+            padding-left: 15px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: 600;
+            font-family: 'Courier New', monospace;
+        }
+
+        .info-box {
+            background: #1a1a1a;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 3px solid #ff6b35;
+            margin-top: 20px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .error-message {
+            background: #2a1a1a;
+            color: #ff6b35;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 3px solid #ff6b35;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .error-message.visible {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 20px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .quality-selector {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>HLS Adaptive Bitrate Player</h1>
+            <p class="subtitle">Video playback with quality selection and network metrics</p>
+        </header>
+
+        <div class="player-wrapper">
+            <video id="video" controls></video>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label class="control-label">Quality Level</label>
+                <div class="quality-selector" id="quality-buttons"></div>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">Stream URL</label>
+                <input
+                    type="text"
+                    id="stream-url"
+                    value="master.m3u8"
+                    style="
+                        width: 100%;
+                        padding: 8px 12px;
+                        background: #222;
+                        color: #fff;
+                        border: 1px solid #444;
+                        border-radius: 4px;
+                        font-family: monospace;
+                        font-size: 12px;
+                    "
+                />
+                <button
+                    onclick="document.getElementById('video').src = document.getElementById('stream-url').value; loadStream();"
+                    style="margin-top: 10px; width: 100%;"
+                >
+                    Load Stream
+                </button>
+            </div>
+        </div>
+
+        <div class="stats">
+            <h3 style="margin-bottom: 15px; font-size: 14px;">Live Metrics</h3>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-label">Current Bitrate</div>
+                    <div class="stat-value" id="bitrate">-- kbps</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Resolution</div>
+                    <div class="stat-value" id="resolution">-- x --</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Buffered</div>
+                    <div class="stat-value" id="buffered">-- s</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Playback Rate</div>
+                    <div class="stat-value" id="playback-rate">1.0x</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-box">
+            <strong>About this player:</strong><br>
+            This HLS player uses hls.js for adaptive bitrate streaming. The stream uses
+            keyframe-aligned segments (6 seconds each) to enable smooth quality switching
+            without buffering interruptions. Try adjusting quality levels to see ABR in action.
+        </div>
+
+        <div class="error-message" id="error-message"></div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const bitrateText = document.getElementById('bitrate');
+        const resolutionText = document.getElementById('resolution');
+        const bufferedText = document.getElementById('buffered');
+        const playbackRateText = document.getElementById('playback-rate');
+        const qualityButtonsContainer = document.getElementById('quality-buttons');
+        const errorBoxElement = document.getElementById('error-message');
+
+        let hls = null;
+
+        function showError(message) {
+            errorBoxElement.textContent = message;
+            errorBoxElement.classList.add('visible');
+        }
+
+        function clearError() {
+            errorBoxElement.classList.remove('visible');
+        }
+
+        function loadStream() {
+            clearError();
+
+            if (!HLS.isSupported()) {
+                video.src = document.getElementById('stream-url').value;
+                return;
+            }
+
+            if (hls) {
+                hls.destroy();
+            }
+
+            hls = new HLS({
+                debug: false,
+                enableWorker: true,
+                lowLatencyMode: false,
+            });
+
+            const streamUrl = document.getElementById('stream-url').value;
+
+            hls.loadSource(streamUrl);
+            hls.attachMedia(video);
+
+            hls.on(HLS.Events.MANIFEST_PARSED, () => {
+                populateQualityButtons();
+            });
+
+            hls.on(HLS.Events.LEVEL_SWITCHED, (event, data) => {
+                updateQualityButtons(data.level);
+            });
+
+            hls.on(HLS.Events.ERROR, (event, data) => {
+                if (data.fatal) {
+                    switch (data.type) {
+                        case HLS.ErrorTypes.NETWORK_ERROR:
+                            showError(`Network error: ${data.response?.status || 'Unknown'}`);
+                            break;
+                        case HLS.ErrorTypes.MEDIA_ERROR:
+                            showError('Media error: Invalid video format or stream');
+                            break;
+                        default:
+                            showError(`Playback error: ${data.reason || 'Unknown error'}`);
+                    }
+                }
+            });
+
+            updateMetrics();
+            setInterval(updateMetrics, 1000);
+        }
+
+        function populateQualityButtons() {
+            if (!hls) return;
+
+            qualityButtonsContainer.innerHTML = '';
+
+            const levels = hls.levels;
+
+            levels.forEach((level, index) => {
+                const button = document.createElement('button');
+                const height = level.height || 'auto';
+                const bitrate = Math.round(level.bitrate / 1000);
+                button.textContent = `${height}p (${bitrate}kbps)`;
+                button.dataset.index = index;
+
+                button.onclick = () => {
+                    hls.currentLevel = index;
+                };
+
+                qualityButtonsContainer.appendChild(button);
+            });
+
+            // Add auto button
+            const autoButton = document.createElement('button');
+            autoButton.textContent = 'Auto';
+            autoButton.onclick = () => {
+                hls.currentLevel = -1;
+            };
+            qualityButtonsContainer.insertBefore(autoButton, qualityButtonsContainer.firstChild);
+
+            updateQualityButtons(hls.currentLevel);
+        }
+
+        function updateQualityButtons(currentLevel) {
+            document.querySelectorAll('#quality-buttons button').forEach((btn) => {
+                btn.classList.remove('active');
+            });
+
+            if (currentLevel === -1) {
+                document.querySelectorAll('#quality-buttons button')[0].classList.add('active');
+            } else {
+                const button = document.querySelector(
+                    `#quality-buttons button[data-index="${currentLevel}"]`
+                );
+                if (button) {
+                    button.classList.add('active');
+                }
+            }
+        }
+
+        function updateMetrics() {
+            if (!video) return;
+
+            // Bitrate
+            if (hls && hls.currentLevel >= 0) {
+                const level = hls.levels[hls.currentLevel];
+                const bitrate = Math.round(level.bitrate / 1000);
+                bitrateText.textContent = `${bitrate} kbps`;
+
+                // Resolution
+                const height = level.height || 0;
+                const width = level.width || 0;
+                resolutionText.textContent = `${width} x ${height}`;
+            } else if (hls && hls.currentLevel === -1) {
+                bitrateText.textContent = 'Auto (adaptive)';
+            }
+
+            // Buffered
+            if (video.buffered.length > 0) {
+                const bufferedEnd = video.buffered.end(video.buffered.length - 1);
+                const currentTime = video.currentTime;
+                const bufferLength = Math.round(bufferedEnd - currentTime);
+                bufferedText.textContent = `${bufferLength} s`;
+            }
+
+            // Playback rate
+            playbackRateText.textContent = `${video.playbackRate.toFixed(1)}x`;
+        }
+
+        // Load default stream on page load
+        window.addEventListener('load', () => {
+            loadStream();
+        });
+    </script>
+</body>
+</html>
